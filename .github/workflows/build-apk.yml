@@ -5,6 +5,9 @@ on:
     branches: ["**"]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -27,12 +30,37 @@ jobs:
       - name: Debug APK derle
         run: ./gradlew assembleDebug --stacktrace
 
-      - name: APK'yı yükle
+      - name: APK'yı adlandır
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk dist/taksi-oto-kabul.apk
+
+      - name: APK'yı artefakt olarak yükle
         uses: actions/upload-artifact@v4
         with:
           name: taksi-oto-kabul-apk
-          path: app/build/outputs/apk/debug/*.apk
+          path: dist/taksi-oto-kabul.apk
           if-no-files-found: error
+
+      # Telefondan doğrudan indirilebilsin diye sürüm olarak da yayınla.
+      # Artefakt indirmek GitHub oturumu ve zip açmayı gerektiriyor; sürüm dosyası gerektirmiyor.
+      - name: Sürüm olarak yayınla
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-latest
+          name: Taksi Oto Kabul - son APK
+          body: |
+            Telefona kurulabilir APK (debug imzalı).
+
+            Kurulum:
+            1. Aşağıdaki `taksi-oto-kabul.apk` dosyasını telefonunuzdan indirin.
+            2. Telefon "bilinmeyen kaynak" uyarısı verirse tarayıcıya kurulum izni verin.
+            3. Kurduktan sonra uygulamayı açın ve README'deki ilk ayar adımlarını izleyin.
+
+            Uygulama deneme modu açık gelir: kuralları doğrulayana kadar
+            hiçbir düğmeye basmaz, sadece kayıt tutar.
+          files: dist/taksi-oto-kabul.apk
+          make_latest: true
 
       - name: Test raporunu yükle
         if: failure()
