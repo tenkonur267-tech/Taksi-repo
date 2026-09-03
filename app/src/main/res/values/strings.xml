@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Taksi Oto Kabul</string>
+    <string name="accessibility_service_label">Taksi Oto Kabul servisi</string>
+    <string name="accessibility_service_description">Seçtiğiniz taksi uygulamasında ekrana gelen yolcu çağrılarını okur, belirlediğiniz tutar aralığına uyanları otomatik kabul eder.</string>
+    <string name="notif_channel_id">oto_kabul</string>
+    <string name="notif_channel_name">Otomatik kabul bildirimleri</string>
+</resources>
