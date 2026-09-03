@@ -64,6 +64,21 @@ hane** geliyorsa binlik ayırıcıdır, 1-2 hane geliyorsa ondalık ayırıcıd�
 
 ## Kurulum
 
+### Hazır APK (en kolay)
+
+Her push'ta GitHub Actions APK'yı derleyip sürüm olarak yayınlıyor. Telefonunuzun
+tarayıcısından şu adresi açıp indirin:
+
+**https://github.com/tenkonur267-tech/Taksi-repo/releases/tag/apk-latest**
+
+Doğrudan dosya bağlantısı:
+`https://github.com/tenkonur267-tech/Taksi-repo/releases/download/apk-latest/taksi-oto-kabul.apk`
+
+İndirirken telefon "bilinmeyen kaynaktan kurulum" uyarısı verirse tarayıcıya izin
+verin. APK debug anahtarıyla imzalıdır; Play Store'dan değil, yan yükleme ile kurulur.
+
+### Kaynaktan derlemek
+
 Gereken: Android Studio (Ladybug veya üstü), JDK 17, Android SDK 34.
 
 ```bash
