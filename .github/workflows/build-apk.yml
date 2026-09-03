@@ -1,0 +1,43 @@
+name: APK derle
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 17 kur
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Gradle hazırla
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Birim testleri
+        run: ./gradlew test --stacktrace
+
+      - name: Debug APK derle
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: APK'yı yükle
+        uses: actions/upload-artifact@v4
+        with:
+          name: taksi-oto-kabul-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      - name: Test raporunu yükle
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-raporu
+          path: app/build/reports/tests/
+          if-no-files-found: ignore
