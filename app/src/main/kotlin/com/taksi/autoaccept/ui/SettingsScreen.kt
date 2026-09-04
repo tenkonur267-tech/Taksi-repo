@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.taksi.autoaccept.core.rules.RuleEngine
+import com.taksi.autoaccept.service.RideAcceptAccessibilityService
 import com.taksi.autoaccept.util.AccessibilityUtils
 import com.taksi.autoaccept.util.InstalledApps
 
@@ -47,6 +48,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
     val context = LocalContext.current
 
     var serviceEnabled by remember { mutableStateOf(AccessibilityUtils.isServiceEnabled(context)) }
+    var serviceRunning by remember { mutableStateOf(RideAcceptAccessibilityService.instanceRunning) }
     var showAppPicker by remember { mutableStateOf(false) }
 
     // Kullanici sistem ayarlarindan donunce durumu tazele.
@@ -55,6 +57,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 serviceEnabled = AccessibilityUtils.isServiceEnabled(context)
+                serviceRunning = RideAcceptAccessibilityService.instanceRunning
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -66,6 +69,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
         item {
             StatusCard(
                 serviceEnabled = serviceEnabled,
+                serviceRunning = serviceRunning,
                 onOpenSettings = { AccessibilityUtils.openAccessibilitySettings(context) }
             )
         }
@@ -247,6 +251,14 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     checked = settings.vibrateOnAccept,
                     onCheckedChange = { on -> viewModel.update { it.copy(vibrateOnAccept = on) } }
                 )
+                SwitchRow(
+                    label = "Tanılama modu",
+                    description = "Normalde sessiz geçilen her şeyi de kaydeder: ekranda hangi " +
+                        "uygulama var, ekrandan ne okundu, pencere okunabildi mi. " +
+                        "\"Hiçbir şey olmuyor\" durumunu çözmek için bunu açın.",
+                    checked = settings.diagnosticMode,
+                    onCheckedChange = { on -> viewModel.update { it.copy(diagnosticMode = on) } }
+                )
             }
         }
 
@@ -264,7 +276,11 @@ fun SettingsScreen(viewModel: MainViewModel) {
 }
 
 @Composable
-private fun StatusCard(serviceEnabled: Boolean, onOpenSettings: () -> Unit) {
+private fun StatusCard(
+    serviceEnabled: Boolean,
+    serviceRunning: Boolean,
+    onOpenSettings: () -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -290,6 +306,15 @@ private fun StatusCard(serviceEnabled: Boolean, onOpenSettings: () -> Unit) {
                 },
                 style = MaterialTheme.typography.bodyMedium
             )
+            if (serviceEnabled && !serviceRunning) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Ayarlarda açık görünüyor ama servis çalışmıyor. Servisi kapatıp " +
+                        "tekrar açın; sorun sürerse telefonu yeniden başlatın.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
             Spacer(Modifier.height(12.dp))
             Button(onClick = onOpenSettings) { Text("Erişilebilirlik ayarlarını aç") }
         }

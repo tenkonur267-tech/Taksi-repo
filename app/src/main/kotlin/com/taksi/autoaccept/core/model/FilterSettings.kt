@@ -50,9 +50,18 @@ data class FilterSettings(
     val handleNotifications: Boolean = true,
 
     /** Otomatik kabulden sonra telefon titresin mi? */
-    val vibrateOnAccept: Boolean = true
+    val vibrateOnAccept: Boolean = true,
+
+    /**
+     * Tanilama modu: normalde sessiz gecilen durumlari da kayda gecer
+     * (okunan ekran metni, izlenmeyen paketler, okunamayan pencereler).
+     * "Hicbir sey olmuyor" durumunu teshis etmenin tek yolu bu.
+     */
+    val diagnosticMode: Boolean = false
 ) {
     companion object {
-        val DEFAULT_ACCEPT_LABELS = listOf("kabul et", "kabul", "onayla", "accept", "al")
+        // "al" bilerek yok: 2 harfli etiket "İptal" icinde gecer ve
+        // parcali eslesmede iptal dugmesine basilmasina yol acar.
+        val DEFAULT_ACCEPT_LABELS = listOf("kabul et", "kabul", "onayla", "accept")
     }
 }

@@ -37,6 +37,7 @@ class SettingsRepository(private val context: Context) {
         val workEnd = intPreferencesKey("work_end_minute")
         val handleNotifications = booleanPreferencesKey("handle_notifications")
         val vibrate = booleanPreferencesKey("vibrate_on_accept")
+        val diagnostic = booleanPreferencesKey("diagnostic_mode")
 
         // Sayaclar
         val lastAcceptMs = longPreferencesKey("last_accept_ms")
@@ -66,7 +67,8 @@ class SettingsRepository(private val context: Context) {
             workStartMinute = this[Keys.workStart] ?: defaults.workStartMinute,
             workEndMinute = this[Keys.workEnd] ?: defaults.workEndMinute,
             handleNotifications = this[Keys.handleNotifications] ?: defaults.handleNotifications,
-            vibrateOnAccept = this[Keys.vibrate] ?: defaults.vibrateOnAccept
+            vibrateOnAccept = this[Keys.vibrate] ?: defaults.vibrateOnAccept,
+            diagnosticMode = this[Keys.diagnostic] ?: defaults.diagnosticMode
         )
     }
 
@@ -89,6 +91,7 @@ class SettingsRepository(private val context: Context) {
             prefs[Keys.workEnd] = next.workEndMinute
             prefs[Keys.handleNotifications] = next.handleNotifications
             prefs[Keys.vibrate] = next.vibrateOnAccept
+            prefs[Keys.diagnostic] = next.diagnosticMode
         }
     }
 

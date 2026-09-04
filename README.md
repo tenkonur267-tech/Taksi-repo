@@ -152,6 +152,24 @@ Kayıtlar birkaç çağrı boyunca doğru çıktıktan sonra kapatın. Artık ku
 
 ---
 
+## Çalışmıyorsa: tanılama modu
+
+"Çağrılar geliyor ama uygulama hiçbir şey yapmıyor" durumunda **Ayarlar → Diğer →
+Tanılama modu**'nu açın, sonra Kayıtlar sekmesine bakın. Normalde sessiz geçilen
+her adım orada görünür:
+
+| Kayıt | Anlamı | Yapılacak |
+|---|---|---|
+| Hiç kayıt yok | Servis olay almıyor | Durum kartını kontrol edin; "açık görünüyor ama çalışmıyor" yazıyorsa servisi kapatıp açın |
+| `Ekranda: com.filan.app · bu uygulama izlenmiyor` | Çağrı sırasında ekranda olan uygulama seçtiğinizden farklı | Kayıttaki paket adını "Uygulama seç"ten işaretleyin |
+| `Pencere okunamadı` | Uygulama ekranını erişilebilirliğe kapatıyor (`FLAG_SECURE`) | Yapılabilecek bir şey yok |
+| `Çağrı kartı değil` + okunan metin | Ekran okundu ama çağrı sayılmadı | Metinde tutar `₺`/`TL` ile görünüyor mu, kabul düğmesinin yazısı ayarlardakiyle aynı mı bakın |
+| `Atlandı · Tutar okunamadı` | Kart tanındı, tutar bulunamadı | Okunan metni bana gönderin, ayrıştırıcıyı ona göre ayarlayayım |
+| `Atlandı · Kabul düğmesi bulunamadı` | Karar verildi ama basılacak düğme yok | Düğmedeki yazıyı birebir ayarlara girin |
+
+Kayıt satırındaki ham metin, ekrandan gerçekten ne okunduğunu gösterir; sorunu
+çözmenin en hızlı yolu o satırı paylaşmaktır.
+
 ## Bilinen sınırlar
 
 - **Ekranda görünmeyen çağrı kabul edilemez.** Taksi uygulaması önde değilse ve
@@ -164,6 +182,8 @@ Kayıtlar birkaç çağrı boyunca doğru çıktıktan sonra kapatın. Artık ku
   ayarları güncellemeniz gerekir. Deneme modunu tekrar açıp doğrulayın.
 - Bazı uygulamalar `FLAG_SECURE` ile ekranı erişilebilirliğe kapatır; bu
   durumda hiçbir metin okunamaz.
+- Kabul düğmesi bir resimse ve içerik açıklaması (contentDescription) da
+  taşımıyorsa bulunamaz; erişilebilirlik ağacında yazı olarak görünmesi gerekir.
 
 ---
 

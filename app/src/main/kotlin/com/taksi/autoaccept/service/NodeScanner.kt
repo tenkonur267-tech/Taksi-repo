@@ -2,6 +2,8 @@ package com.taksi.autoaccept.service
 
 import android.graphics.Rect
 import android.view.accessibility.AccessibilityNodeInfo
+import com.taksi.autoaccept.core.rules.AcceptLabelMatcher
+import com.taksi.autoaccept.core.rules.LabelMatch
 import java.util.ArrayDeque
 import java.util.Locale
 
@@ -10,6 +12,7 @@ object NodeScanner {
 
     private val TR: Locale = Locale.forLanguageTag("tr")
     private const val MAX_NODES = 800
+    private const val MAX_DEPTH = 60
 
     /** Agactaki gorunur metinleri, ekrandaki sirayla toplar. */
     fun collectTexts(root: AccessibilityNodeInfo?): List<String> {
@@ -37,8 +40,6 @@ object NodeScanner {
         labels: List<String>
     ): AcceptTarget? {
         if (root == null || labels.isEmpty()) return null
-        val normalized = labels.map { it.trim().lowercase(TR) }.filter { it.isNotEmpty() }
-        if (normalized.isEmpty()) return null
 
         var exactMatch: AcceptTarget? = null
         var partialMatch: AcceptTarget? = null
@@ -51,12 +52,11 @@ object NodeScanner {
                 ?: return@forEachNode
             if (label.isEmpty()) return@forEachNode
 
-            val isExact = normalized.any { it == label }
-            val isPartial = !isExact && normalized.any { label.contains(it) }
-            if (!isExact && !isPartial) return@forEachNode
+            val kind = AcceptLabelMatcher.match(label, labels)
+            if (kind == LabelMatch.NONE) return@forEachNode
 
             val target = toTarget(node, label) ?: return@forEachNode
-            if (isExact) {
+            if (kind == LabelMatch.EXACT) {
                 exactMatch = target
             } else if (partialMatch == null) {
                 partialMatch = target
@@ -83,6 +83,18 @@ object NodeScanner {
             depth++
         }
         return null
+    }
+
+    /** Verilen dugumden yukari cikarak icinde bulundugu pencerenin kokunu bulur. */
+    fun rootOf(node: AccessibilityNodeInfo): AccessibilityNodeInfo {
+        var current = node
+        var depth = 0
+        while (depth < MAX_DEPTH) {
+            val parent = current.parent ?: return current
+            current = parent
+            depth++
+        }
+        return current
     }
 
     /** Agaci genislik oncelikli gezer; kotu bicimli agaclarda dugum sayisini sinirlar. */
