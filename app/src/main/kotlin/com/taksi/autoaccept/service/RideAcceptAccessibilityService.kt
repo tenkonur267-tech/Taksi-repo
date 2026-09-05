@@ -51,12 +51,28 @@ class RideAcceptAccessibilityService : AccessibilityService() {
     private var lastForeignPackage: String? = null
     private var lastForeignAtMs = 0L
 
+    /** Durum bildirimini bu servis oturumunda ayaga kaldirdik mi? */
+    private var foregroundRequested = false
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         repository = SettingsRepository(applicationContext)
 
         repository.settings
-            .onEach { settings = it }
+            .onEach { next ->
+                val wasEnabled = settings.enabled
+                settings = next
+                // Kapalidan aciga geciste durum bildirimini ayaga kaldir. Bu,
+                // yeniden baslatma ya da surecin oldurulmesi sonrasi ilk okumayi
+                // da kapsar. Arka plandan baslatma engellenirse yutulur; kabul
+                // islevi bu servise bagli degil.
+                if (next.enabled && (!wasEnabled || !foregroundRequested)) {
+                    foregroundRequested = true
+                    AutoAcceptForegroundService.start(applicationContext)
+                } else if (!next.enabled) {
+                    foregroundRequested = false
+                }
+            }
             .launchIn(scope)
 
         repository.counters

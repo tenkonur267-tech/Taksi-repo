@@ -9,6 +9,8 @@
         tools:ignore="QueryAllPackagesPermission" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <application
         android:allowBackup="true"
@@ -29,6 +31,17 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Cagriyi bu servis yakalamaz; yalnizca "calisiyor" durumunu tasir:
+             kalici bildirim, bildirimden durdurma ve surec onceligi. -->
+        <service
+            android:name=".service.AutoAcceptForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Kullanicinin baslattigi otomatik yolcu cagrisi kabulunun acik oldugunu gosteren kalici durum bildirimi" />
+        </service>
 
         <service
             android:name=".service.RideAcceptAccessibilityService"

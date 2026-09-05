@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -37,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.taksi.autoaccept.core.rules.RuleEngine
+import com.taksi.autoaccept.service.AutoAcceptForegroundService
 import com.taksi.autoaccept.service.RideAcceptAccessibilityService
 import com.taksi.autoaccept.util.AccessibilityUtils
 import com.taksi.autoaccept.util.InstalledApps
@@ -67,6 +69,26 @@ fun SettingsScreen(viewModel: MainViewModel) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
 
         item {
+            RunControlCard(
+                running = settings.enabled,
+                dryRun = settings.dryRun,
+                blockReason = when {
+                    !serviceEnabled -> "Önce aşağıdan erişilebilirlik servisini açın."
+                    settings.targetPackages.isEmpty() -> "Önce aşağıdan izlenecek uygulamayı seçin."
+                    else -> null
+                },
+                onStart = {
+                    viewModel.update { it.copy(enabled = true) }
+                    AutoAcceptForegroundService.start(context)
+                },
+                onStop = {
+                    viewModel.update { it.copy(enabled = false) }
+                    AutoAcceptForegroundService.stop(context)
+                }
+            )
+        }
+
+        item {
             StatusCard(
                 serviceEnabled = serviceEnabled,
                 serviceRunning = serviceRunning,
@@ -76,12 +98,6 @@ fun SettingsScreen(viewModel: MainViewModel) {
 
         item {
             SectionCard("Çalışma") {
-                SwitchRow(
-                    label = "Otomatik kabul açık",
-                    description = "Kapalıyken hiçbir çağrı işlenmez.",
-                    checked = settings.enabled,
-                    onCheckedChange = { on -> viewModel.update { it.copy(enabled = on) } }
-                )
                 SwitchRow(
                     label = "Deneme modu",
                     description = "Açıkken düğmeye BASILMAZ; kararlar sadece Kayıtlar sekmesine yazılır. " +
@@ -272,6 +288,86 @@ fun SettingsScreen(viewModel: MainViewModel) {
             onToggle = viewModel::toggleTarget,
             onDismiss = { showAppPicker = false }
         )
+    }
+}
+
+/**
+ * Ana kontrol. Tek anahtar [com.taksi.autoaccept.core.model.FilterSettings.enabled];
+ * on plan servisi yalnizca bunun gorunur karsiligi.
+ */
+@Composable
+private fun RunControlCard(
+    running: Boolean,
+    dryRun: Boolean,
+    blockReason: String?,
+    onStart: () -> Unit,
+    onStop: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (running) MaterialTheme.colorScheme.primaryContainer
+            else MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Text(
+                if (running) "ÇALIŞIYOR" else "DURDURULDU",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                when {
+                    running && dryRun ->
+                        "Çağrılar arka planda izleniyor ama deneme modu açık: düğmeye basılmıyor, " +
+                            "sadece kayıt tutuluyor."
+
+                    running -> "Çağrılar arka planda izleniyor ve kuralınıza uyanlar kabul ediliyor."
+                    else -> "Hiçbir çağrı işlenmiyor."
+                },
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            if (blockReason != null && !running) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    blockReason,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+            Button(
+                onClick = if (running) onStop else onStart,
+                enabled = running || blockReason == null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp),
+                colors = if (running) {
+                    ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    )
+                } else {
+                    ButtonDefaults.buttonColors()
+                }
+            ) {
+                Text(
+                    if (running) "DURDUR" else "BAŞLAT",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
     }
 }
 

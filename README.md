@@ -106,7 +106,7 @@ hiçbir şey işlenmez.
 **3. Tutar aralığınızı yazın.**
 Örneğin en az `150`, en çok boş (sınırsız). İsterseniz azami mesafe de yazın.
 
-**4. Deneme modunu AÇIK bırakın ve birkaç çağrı bekleyin.**
+**4. BAŞLAT'a basıp deneme modunu AÇIK bırakın ve birkaç çağrı bekleyin.**
 Bu en önemli adım. Taksi uygulamasına geçin, çağrılar gelsin, sonra
 **Kayıtlar** sekmesine bakın. Her satırda ne okunduğunu ve ne karar verildiğini
 görürsünüz:
@@ -131,13 +131,18 @@ gibi). Virgülle birden fazla yazabilirsiniz.
 Kayıtlar birkaç çağrı boyunca doğru çıktıktan sonra kapatın. Artık kural uyan
 çağrılarda düğmeye basılacak.
 
+**7. BAŞLAT'a basın.**
+Uygulamayı kapatabilirsiniz; kontrol arka planda çalışmaya devam eder. Bildirim
+gölgesinde "Otomatik kabul çalışıyor" bildirimi durur ve oradaki **Durdur**
+düğmesiyle uygulamayı açmadan durdurabilirsiniz.
+
 ---
 
 ## Ayarlar
 
 | Ayar | Ne işe yarar |
 |---|---|
-| **Otomatik kabul açık** | Ana anahtar. Kapalıyken hiçbir çağrı işlenmez. |
+| **BAŞLAT / DURDUR** | Ana kontrol. Durdurulmuşken hiçbir çağrı işlenmez. Çalışırken kalıcı bir bildirim görünür ve oradan da durdurulabilir. |
 | **Deneme modu** | Düğmeye basmaz, sadece kaydeder. Kalibrasyon için. |
 | **İzlenen uygulama** | Sadece işaretlediğiniz uygulamaların ekranı okunur. |
 | **En az / En çok (TL)** | Kabul aralığı. Sınır değerleri dahildir. Üst sınır boş = sınırsız. |
@@ -151,6 +156,25 @@ Kayıtlar birkaç çağrı boyunca doğru çıktıktan sonra kapatın. Artık ku
 | **Bildirimlerden gelen çağrılar** | Çağrı bildirim olarak geliyorsa bildirimdeki kabul eylemini çalıştırır. |
 
 ---
+
+## Başlatma, durdurma ve arka plan
+
+Ana kontrol Ayarlar sekmesinin en üstündeki büyük **BAŞLAT / DURDUR** düğmesi.
+
+- **BAŞLAT** — çağrılar arka planda izlenir. Uygulamayı kapatabilirsiniz;
+  çağrıları yakalayan erişilebilirlik servisi sistem tarafından ayakta tutulur.
+  Çalışırken kalıcı bir durum bildirimi görünür: tutar aralığınızı, bugünkü
+  kabul sayısını ve bir **Durdur** düğmesi taşır.
+- **DURDUR** — hiçbir çağrı işlenmez, bildirim kalkar.
+
+Düğme erişilebilirlik servisi kapalıyken ya da izlenecek uygulama seçilmemişken
+etkisizdir; kart bunun nedenini yazar.
+
+Durum bildirimi tek başına bir şey yapmaz — çağrıları yakalayan erişilebilirlik
+servisidir. Bildirimin işi durumu görünür kılmak, tek dokunuşla durdurmayı
+sağlamak ve bellek baskısında sürecin öldürülme ihtimalini düşürmek. Android 13
+ve üstünde bildirim izni reddedilirse uygulama yine çalışır, yalnızca bildirim
+görünmez.
 
 ## Çalışmıyorsa: tanılama modu
 
