@@ -37,7 +37,12 @@ class SettingsRepository(private val context: Context) {
         val workEnd = intPreferencesKey("work_end_minute")
         val handleNotifications = booleanPreferencesKey("handle_notifications")
         val vibrate = booleanPreferencesKey("vibrate_on_accept")
+        val overlay = booleanPreferencesKey("overlay_enabled")
         val diagnostic = booleanPreferencesKey("diagnostic_mode")
+
+        // Baloncugun ekrandaki yeri
+        val overlayX = intPreferencesKey("overlay_x")
+        val overlayY = intPreferencesKey("overlay_y")
 
         // Sayaclar
         val lastAcceptMs = longPreferencesKey("last_accept_ms")
@@ -68,6 +73,7 @@ class SettingsRepository(private val context: Context) {
             workEndMinute = this[Keys.workEnd] ?: defaults.workEndMinute,
             handleNotifications = this[Keys.handleNotifications] ?: defaults.handleNotifications,
             vibrateOnAccept = this[Keys.vibrate] ?: defaults.vibrateOnAccept,
+            overlayEnabled = this[Keys.overlay] ?: defaults.overlayEnabled,
             diagnosticMode = this[Keys.diagnostic] ?: defaults.diagnosticMode
         )
     }
@@ -91,7 +97,25 @@ class SettingsRepository(private val context: Context) {
             prefs[Keys.workEnd] = next.workEndMinute
             prefs[Keys.handleNotifications] = next.handleNotifications
             prefs[Keys.vibrate] = next.vibrateOnAccept
+            prefs[Keys.overlay] = next.overlayEnabled
             prefs[Keys.diagnostic] = next.diagnosticMode
+        }
+    }
+
+    /**
+     * Baloncugun son birakildigi yer; kayit yoksa null doner ve baloncuk
+     * varsayilan kosesine kurulur.
+     */
+    val overlayPosition: Flow<Pair<Int, Int>?> = context.dataStore.data.map { prefs ->
+        val x = prefs[Keys.overlayX]
+        val y = prefs[Keys.overlayY]
+        if (x != null && y != null) x to y else null
+    }
+
+    suspend fun saveOverlayPosition(x: Int, y: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.overlayX] = x
+            prefs[Keys.overlayY] = y
         }
     }
 

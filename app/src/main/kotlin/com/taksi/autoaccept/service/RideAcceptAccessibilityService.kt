@@ -3,6 +3,7 @@ package com.taksi.autoaccept.service
 import android.accessibilityservice.AccessibilityService
 import android.app.Notification
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -10,6 +11,7 @@ import android.os.VibratorManager
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.widget.Toast
 import com.taksi.autoaccept.core.log.DecisionLog
 import com.taksi.autoaccept.core.log.LogRepository
 import com.taksi.autoaccept.core.model.FilterSettings
@@ -18,9 +20,12 @@ import com.taksi.autoaccept.core.rules.Decision
 import com.taksi.autoaccept.core.rules.RejectReason
 import com.taksi.autoaccept.core.rules.RuleEngine
 import com.taksi.autoaccept.data.SettingsRepository
+import com.taksi.autoaccept.overlay.OverlayBubble
+import com.taksi.autoaccept.ui.MainActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -54,6 +59,12 @@ class RideAcceptAccessibilityService : AccessibilityService() {
     /** Durum bildirimini bu servis oturumunda ayaga kaldirdik mi? */
     private var foregroundRequested = false
 
+    /** Ekranin ustunde duran baslat/durdur baloncugu. */
+    private var overlay: OverlayBubble? = null
+
+    @Volatile
+    private var overlayPosition: Pair<Int, Int>? = null
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         repository = SettingsRepository(applicationContext)
@@ -79,14 +90,96 @@ class RideAcceptAccessibilityService : AccessibilityService() {
             .onEach { counters = it }
             .launchIn(scope)
 
+        observeOverlay()
+
         instanceRunning = true
         LogRepository.add(DecisionLog.info("Servis bağlandı", "Ekran izleniyor"))
     }
 
     override fun onDestroy() {
         instanceRunning = false
+        overlay?.hide()
+        overlay = null
         scope.cancel()
         super.onDestroy()
+    }
+
+    // --- Ekran ustu baloncuk ----------------------------------------------
+
+    /**
+     * Baloncugu kurar ve ayarlara bagli tutar.
+     *
+     * Pencereyi bu servis acar: erisilebilirlik kaplamasi ayri bir izin
+     * istemez ve servis zaten acik olmak zorunda oldugu icin baloncuk,
+     * uygulama arka plandayken de ekranda kalir.
+     */
+    private fun observeOverlay() {
+        scope.launch {
+            // Once son birakildigi yeri oku; yoksa varsayilan koseye kurulur.
+            overlayPosition = runCatching { repository.overlayPosition.first() }.getOrNull()
+
+            val bubble = OverlayBubble(
+                service = this@RideAcceptAccessibilityService,
+                onToggle = ::toggleFromOverlay,
+                onLongPress = ::openApp,
+                onMoved = { x, y ->
+                    overlayPosition = x to y
+                    scope.launch { repository.saveOverlayPosition(x, y) }
+                }
+            )
+            overlay = bubble
+
+            // show/hide kendi icinde tekrar cagrilmaya dayanikli; her ayar
+            // degisiminde durumu yeniden uygulamak yeterli.
+            repository.settings
+                .onEach { next ->
+                    if (next.overlayEnabled) {
+                        bubble.show(overlayPosition)
+                        bubble.render(running = next.enabled, dryRun = next.dryRun)
+                    } else {
+                        bubble.hide()
+                    }
+                }
+                .launchIn(scope)
+        }
+    }
+
+    /** Baloncuga dokunuldu: tek anahtari cevir. */
+    private fun toggleFromOverlay() {
+        val current = settings
+        if (!current.enabled && current.targetPackages.isEmpty()) {
+            // Hicbir uygulama secilmemisken baslatmak sessiz bir hayal kirikligi
+            // olurdu: baloncuk yesilden kirmiziya doner ama hicbir sey izlenmez.
+            Toast.makeText(
+                this,
+                "Önce uygulamadan izlenecek taksi uygulamasını seçin",
+                Toast.LENGTH_LONG
+            ).show()
+            return
+        }
+
+        val next = !current.enabled
+        // Bellekteki kopyayi hemen guncelle: depoya yazma asenkron, kullanici
+        // iki kez dokunursa ayni karari tekrarlamasin.
+        settings = current.copy(enabled = next)
+        scope.launch { repository.update { it.copy(enabled = next) } }
+        vibrate(TOGGLE_VIBRATE_MS)
+        LogRepository.add(
+            DecisionLog.info(
+                if (next) "Baloncuktan başlatıldı" else "Baloncuktan durduruldu",
+                if (next && current.dryRun) "deneme modu açık: düğmeye basılmaz" else ""
+            )
+        )
+    }
+
+    /** Baloncuga uzun basildi: ayarlar ekranini one getir. */
+    private fun openApp() {
+        runCatching {
+            startActivity(
+                Intent(this, MainActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            )
+        }
     }
 
     override fun onInterrupt() = Unit
@@ -121,6 +214,9 @@ class RideAcceptAccessibilityService : AccessibilityService() {
 
     /** Izlenmeyen bir uygulama one gecti; ayni paketi surekli tekrarlamayalim. */
     private fun logForeignPackage(pkg: String) {
+        // Kendi baloncugumuz da pencere olayi uretir; onu "izlenmiyor" diye
+        // kaydetmek tanilama kaydini yaniltici sekilde doldurur.
+        if (pkg == packageName) return
         val now = System.currentTimeMillis()
         if (pkg == lastForeignPackage && now - lastForeignAtMs < FOREIGN_LOG_WINDOW_MS) return
         lastForeignPackage = pkg
@@ -203,6 +299,9 @@ class RideAcceptAccessibilityService : AccessibilityService() {
                 log(Decision.Reject(RejectReason.NO_ACCEPT_BUTTON, current.acceptLabels.joinToString("/")), request)
                 return true
             }
+            // Jestle basilirken baloncuk kabul dugmesinin uzerinde duruyorsa
+            // dokunusu kendi yutar; kisa sureligine dokunulamaz yapiyoruz.
+            overlay?.pauseTouches(CLICK_TOUCH_PAUSE_MS)
             val clicked = Clicker.click(this, target)
             if (clicked) {
                 onAccepted(decision, request, current)
@@ -343,7 +442,7 @@ class RideAcceptAccessibilityService : AccessibilityService() {
         return cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
     }
 
-    private fun vibrate() {
+    private fun vibrate(durationMs: Long = ACCEPT_VIBRATE_MS) {
         val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             (getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator
         } else {
@@ -351,7 +450,9 @@ class RideAcceptAccessibilityService : AccessibilityService() {
             getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
         } ?: return
         runCatching {
-            vibrator.vibrate(VibrationEffect.createOneShot(200L, VibrationEffect.DEFAULT_AMPLITUDE))
+            vibrator.vibrate(
+                VibrationEffect.createOneShot(durationMs, VibrationEffect.DEFAULT_AMPLITUDE)
+            )
         }
     }
 
@@ -361,6 +462,9 @@ class RideAcceptAccessibilityService : AccessibilityService() {
         private const val DUPLICATE_WINDOW_MS = 8_000L
         private const val FOREIGN_LOG_WINDOW_MS = 30_000L
         private const val MAX_TRACKED_FINGERPRINTS = 12
+        private const val ACCEPT_VIBRATE_MS = 200L
+        private const val TOGGLE_VIBRATE_MS = 40L
+        private const val CLICK_TOUCH_PAUSE_MS = 500L
         private val TR = java.util.Locale.forLanguageTag("tr")
 
         /** Ayarlar ekraninin servisin gercekten calisip calismadigini gostermesi icin. */

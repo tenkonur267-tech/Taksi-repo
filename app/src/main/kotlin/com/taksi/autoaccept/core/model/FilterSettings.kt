@@ -53,6 +53,12 @@ data class FilterSettings(
     val vibrateOnAccept: Boolean = true,
 
     /**
+     * Ekranin ustunde duran baslat/durdur baloncugu gorunsun mu?
+     * Baloncugu erisilebilirlik servisi cizer; servis kapaliyken gorunmez.
+     */
+    val overlayEnabled: Boolean = true,
+
+    /**
      * Tanilama modu: normalde sessiz gecilen durumlari da kayda gecer
      * (okunan ekran metni, izlenmeyen paketler, okunamayan pencereler).
      * "Hicbir sey olmuyor" durumunu teshis etmenin tek yolu bu.

@@ -109,6 +109,26 @@ fun SettingsScreen(viewModel: MainViewModel) {
         }
 
         item {
+            SectionCard("Ekran üstü buton") {
+                SwitchRow(
+                    label = "Başlat/Durdur butonu ekranda dursun",
+                    description = "Uygulama arka plandayken bile ekranın üstünde duran yuvarlak " +
+                        "buton. Tek dokunuş başlatır/durdurur, sürükleyerek istediğiniz yere " +
+                        "taşırsınız, uzun basınca bu ekran açılır.",
+                    checked = settings.overlayEnabled,
+                    onCheckedChange = { on -> viewModel.update { it.copy(overlayEnabled = on) } }
+                )
+                if (settings.overlayEnabled && !serviceEnabled) {
+                    Text(
+                        "Butonu erişilebilirlik servisi çiziyor; servis açılınca ekranda belirir.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        }
+
+        item {
             SectionCard("İzlenen uygulama") {
                 if (settings.targetPackages.isEmpty()) {
                     Text(

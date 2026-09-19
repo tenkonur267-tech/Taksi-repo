@@ -144,6 +144,7 @@ düğmesiyle uygulamayı açmadan durdurabilirsiniz.
 |---|---|
 | **BAŞLAT / DURDUR** | Ana kontrol. Durdurulmuşken hiçbir çağrı işlenmez. Çalışırken kalıcı bir bildirim görünür ve oradan da durdurulabilir. |
 | **Deneme modu** | Düğmeye basmaz, sadece kaydeder. Kalibrasyon için. |
+| **Ekran üstü buton** | Her uygulamanın üstünde duran yuvarlak başlat/durdur butonu. Açık gelir. |
 | **İzlenen uygulama** | Sadece işaretlediğiniz uygulamaların ekranı okunur. |
 | **En az / En çok (TL)** | Kabul aralığı. Sınır değerleri dahildir. Üst sınır boş = sınırsız. |
 | **Azami mesafe (km)** | Yolcu bundan uzaktaysa atlanır. Boş = sınırsız. |
@@ -158,6 +159,32 @@ düğmesiyle uygulamayı açmadan durdurabilirsiniz.
 ---
 
 ## Başlatma, durdurma ve arka plan
+
+Başlatıp durdurmanın üç yolu var: uygulamadaki büyük düğme, ekranın üstünde
+duran baloncuk ve durum bildirimindeki **Durdur**. Üçü de aynı tek anahtarı
+çevirir.
+
+### Ekran üstünde duran buton
+
+Uygulama arka plandayken bile ekranın üstünde duran yuvarlak bir buton.
+Taksi uygulamasının, haritanın, ana ekranın üstünde kalır:
+
+- **Tek dokunuş** — başlatır / durdurur.
+- **Yeşil ▶ BAŞLAT** durdurulmuş, **kırmızı ■ DURDUR** çalışıyor,
+  **turuncu ■ DENEME** çalışıyor ama deneme modu açık demektir.
+- **Sürükleyin** — istediğiniz yere taşıyın; bıraktığınızda en yakın yan kenara
+  yaslanır ve yeri kalıcı olarak hatırlanır.
+- **Uzun basın** — uygulamanın ayarlar ekranı açılır.
+
+Butonu **Ayarlar → Ekran üstü buton**'dan kapatabilirsiniz.
+
+Butonu erişilebilirlik servisi çizer. Bunun iki sonucu var: ayrıca "diğer
+uygulamaların üzerinde göster" izni istenmez (servis zaten açık olmak zorunda),
+ama servis kapalıyken buton da görünmez. Otomatik kabul tam o sırada kabul
+düğmesine basıyorsa buton yarım saniyeliğine dokunulmaz olur; böylece basış
+butonun altına, taksi uygulamasına gider.
+
+### Uygulama içindeki düğme
 
 Ana kontrol Ayarlar sekmesinin en üstündeki büyük **BAŞLAT / DURDUR** düğmesi.
 
@@ -221,7 +248,10 @@ app/src/main/kotlin/com/taksi/autoaccept/
 │   ├── rules/RuleEngine     kabul/ret kararı (saf fonksiyon)
 │   ├── model/               RideRequest, FilterSettings
 │   └── log/                 karar kayıtları
-├── data/SettingsRepository  DataStore ile kalıcı ayarlar ve sayaçlar
+├── data/SettingsRepository  DataStore ile kalıcı ayarlar, sayaçlar, buton konumu
+├── overlay/
+│   ├── OverlayBubble        ekranın üstünde duran başlat/durdur butonu
+│   └── OverlayPlacement     butonun konumu: sınırlama ve kenara yaslama (saf, test edilir)
 ├── service/
 │   ├── RideAcceptAccessibilityService   ekranı ve bildirimleri izler
 │   ├── NodeScanner                      metin toplama, düğme bulma
