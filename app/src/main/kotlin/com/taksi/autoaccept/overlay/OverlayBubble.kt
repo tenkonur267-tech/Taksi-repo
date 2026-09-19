@@ -3,20 +3,16 @@ package com.taksi.autoaccept.overlay
 import android.accessibilityservice.AccessibilityService
 import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.Color
 import android.graphics.PixelFormat
-import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowManager
-import android.widget.LinearLayout
-import android.widget.TextView
+import android.view.animation.DecelerateInterpolator
 import kotlin.math.hypot
 
 /**
@@ -44,16 +40,20 @@ class OverlayBubble(
     private val windowManager =
         service.getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
-    private var root: LinearLayout? = null
-    private var iconView: TextView? = null
-    private var labelView: TextView? = null
+    private var root: BubbleView? = null
     private var params: WindowManager.LayoutParams? = null
 
     private var running = false
     private var dryRun = true
 
-    private val size = dp(64)
-    private val margin = dp(6)
+    /** Gorunen dairenin capi. */
+    private val diameter = dp(64f)
+
+    /** Golgenin tasmasi icin cevresindeki saydam pay; kenar boslugu da bu. */
+    private val pad = dp(7f)
+
+    /** Pencere daireden biraz buyuk: golge kirpilmasin. */
+    private val windowSize = (diameter + 2 * pad).toInt()
 
     // --- Genel API --------------------------------------------------------
 
@@ -62,13 +62,15 @@ class OverlayBubble(
         if (root != null) return@post
         val (screenWidth, screenHeight) = screenSize()
         val start = saved?.let { (x, y) ->
-            OverlayPlacement.clamp(x, y, screenWidth, screenHeight, size)
-        } ?: OverlayPlacement.default(screenWidth, screenHeight, size, margin)
+            OverlayPlacement.clamp(x, y, screenWidth, screenHeight, windowSize)
+        } ?: OverlayPlacement.default(screenWidth, screenHeight, windowSize, 0)
 
-        val view = buildView()
+        val view = BubbleView(service, diameter, pad).apply {
+            setOnTouchListener(DragTouchListener())
+        }
         val lp = WindowManager.LayoutParams(
-            size,
-            size,
+            windowSize,
+            windowSize,
             overlayType(),
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
@@ -86,7 +88,7 @@ class OverlayBubble(
 
         root = view
         params = lp
-        applyState()
+        view.setState(running, dryRun)
     }
 
     fun hide() = main.post {
@@ -94,15 +96,13 @@ class OverlayBubble(
         runCatching { windowManager.removeView(view) }
         root = null
         params = null
-        iconView = null
-        labelView = null
     }
 
     /** Baloncugun yazisini ve rengini calisma durumuna gore tazeler. */
     fun render(running: Boolean, dryRun: Boolean) = main.post {
         this.running = running
         this.dryRun = dryRun
-        if (root != null) applyState()
+        root?.setState(running, dryRun)
     }
 
     /**
@@ -133,52 +133,6 @@ class OverlayBubble(
         update()
     }
 
-    // --- Gorunum ----------------------------------------------------------
-
-    private fun buildView(): LinearLayout {
-        val icon = TextView(service).apply {
-            setTextSize(TypedValue.COMPLEX_UNIT_DIP, 19f)
-            setTextColor(Color.WHITE)
-            includeFontPadding = false
-        }
-        val label = TextView(service).apply {
-            setTextSize(TypedValue.COMPLEX_UNIT_DIP, 9f)
-            setTextColor(Color.WHITE)
-            includeFontPadding = false
-            setTypeface(typeface, android.graphics.Typeface.BOLD)
-        }
-        iconView = icon
-        labelView = label
-
-        return LinearLayout(service).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            addView(icon)
-            addView(label)
-            setOnTouchListener(DragTouchListener())
-        }
-    }
-
-    private fun applyState() {
-        val view = root ?: return
-        val color = when {
-            running && dryRun -> COLOR_DRY_RUN
-            running -> COLOR_RUNNING
-            else -> COLOR_STOPPED
-        }
-        view.background = GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            setColor(color)
-            setStroke(dp(2), 0x66FFFFFF)
-        }
-        iconView?.text = if (running) "■" else "▶"
-        labelView?.text = when {
-            running && dryRun -> "DENEME"
-            running -> "DURDUR"
-            else -> "BAŞLAT"
-        }
-    }
-
     // --- Dokunus ----------------------------------------------------------
 
     @SuppressLint("ClickableViewAccessibility")
@@ -207,7 +161,7 @@ class OverlayBubble(
                     startY = lp.y
                     dragging = false
                     longPressed = false
-                    v.alpha = 0.75f
+                    press(v, down = true)
                     main.postDelayed(longPress, LONG_PRESS_MS)
                     return true
                 }
@@ -226,7 +180,7 @@ class OverlayBubble(
                             startY + dy.toInt(),
                             screenWidth,
                             screenHeight,
-                            size
+                            windowSize
                         )
                         lp.x = x
                         lp.y = y
@@ -237,10 +191,10 @@ class OverlayBubble(
 
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     main.removeCallbacks(longPress)
-                    v.alpha = 1f
+                    press(v, down = false)
                     when {
                         dragging -> {
-                            lp.x = OverlayPlacement.snapToEdge(lp.x, screenSize().first, size, margin)
+                            lp.x = OverlayPlacement.snapToEdge(lp.x, screenSize().first, windowSize, 0)
                             update()
                             onMoved(lp.x, lp.y)
                         }
@@ -253,6 +207,17 @@ class OverlayBubble(
                 }
             }
             return false
+        }
+
+        /** Basili tutulurken hafifce kuculur: dokunusun karsilik verdigi belli olsun. */
+        private fun press(v: View, down: Boolean) {
+            val scale = if (down) 0.92f else 1f
+            v.animate()
+                .scaleX(scale)
+                .scaleY(scale)
+                .setDuration(90L)
+                .setInterpolator(DecelerateInterpolator())
+                .start()
         }
     }
 
@@ -275,13 +240,9 @@ class OverlayBubble(
 
     private fun overlayType(): Int = WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
 
-    private fun dp(value: Int): Int =
-        (value * service.resources.displayMetrics.density).toInt()
+    private fun dp(value: Float): Float = value * service.resources.displayMetrics.density
 
     companion object {
         private const val LONG_PRESS_MS = 600L
-        private const val COLOR_STOPPED = 0xF21B5E20.toInt()
-        private const val COLOR_RUNNING = 0xF2C62828.toInt()
-        private const val COLOR_DRY_RUN = 0xF2E65100.toInt()
     }
 }
