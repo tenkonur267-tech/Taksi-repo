@@ -406,8 +406,11 @@ class RideAcceptAccessibilityService : AccessibilityService() {
         else "  [DİKKAT: kabul düğmesi bulunamadı, etiketler: ${current.acceptLabels.joinToString("/")}]"
 
     private fun log(decision: Decision, request: RideRequest, note: String = "") {
+        // Tutar okunamadiginda ekrandan ne geldigini gormek tek ipucu; o
+        // durumda metnin daha uzunu kaydedilir.
+        val limit = if (decision is Decision.Reject && decision.reason in AMOUNT_PROBLEMS) 400 else 180
         val raw = buildString {
-            append(request.flatText.take(180))
+            append(request.flatText.take(limit))
             val candidates = request.amountCandidates
             if (candidates.isNotEmpty()) {
                 append("  [adaylar: ")
@@ -465,6 +468,8 @@ class RideAcceptAccessibilityService : AccessibilityService() {
         private const val ACCEPT_VIBRATE_MS = 200L
         private const val TOGGLE_VIBRATE_MS = 40L
         private const val CLICK_TOUCH_PAUSE_MS = 500L
+        private val AMOUNT_PROBLEMS =
+            setOf(RejectReason.NO_AMOUNT, RejectReason.LOW_CONFIDENCE)
         private val TR = java.util.Locale.forLanguageTag("tr")
 
         /** Ayarlar ekraninin servisin gercekten calisip calismadigini gostermesi icin. */

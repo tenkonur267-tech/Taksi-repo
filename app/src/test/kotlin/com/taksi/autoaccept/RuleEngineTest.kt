@@ -52,6 +52,16 @@ class RuleEngineTest {
     ) = RuleEngine.Context(nowMs, minuteOfDay, lastAcceptMs, acceptsToday)
 
     @Test
+    fun `para birimi rakama yapisik yazilsa da cagri karti taninir`() {
+        // Kabul dugmesinin yazisi ayarlardakinden farkli olsa bile "240TL"
+        // bir para isaretidir; kart islenmeli.
+        val decision = RuleEngine(settings())
+            .decide(request("Yeni çağrı", "240TL", "Onayla"), ctx())
+        assertTrue(decision is Decision.Accept)
+        assertEquals(240.0, (decision as Decision.Accept).amount, 0.001)
+    }
+
+    @Test
     fun `aralik icindeki cagri kabul edilir`() {
         val decision = RuleEngine(settings())
             .decide(request("Yeni çağrı", "₺185,00", "Kabul Et"), ctx())

@@ -51,14 +51,27 @@ etmek demektir. Bu yüzden `AmountParser` her sayıyı almaz; her adaya bir
 |---|---|---|
 | 3 | Ücret etiketi **ve** para birimi birlikte | `Tahmini ücret: 190 TL` |
 | 2 | Para birimi var | `₺342,50` |
-| 1 | Sadece ücret etiketi, para birimi yok | `Tahmini ücret 190` |
+| 2 | Ücret etiketi hemen önünde **ve** kuruş hanesi var | `Tahmini ücret: 342,50` |
+| 1 | Sadece ücret etiketi, kuruş hanesi de yok | `Tahmini ücret 190` |
 
-**Güven 2'nin altındaki adaylarla asla otomatik kabul yapılmaz.** Sayının hemen
-ardından `km`, `dk`, `puan`, `%` gibi bir birim geliyorsa o sayı baştan elenir.
+**Güven 2'nin altındaki adaylarla asla otomatik kabul yapılmaz.**
 
-Sayı biçimi hem Türkçe hem İngilizce yazımı çözer: `1.250,75` → 1250.75,
-`1,250` → 1250, `125.50` → 125.50. Tek ayırıcı varsa kural şu: ardından **tam 3
-hane** geliyorsa binlik ayırıcıdır, 1-2 hane geliyorsa ondalık ayırıcıdır.
+Tanınan yazımlar:
+
+| Yazım | Sonuç |
+|---|---|
+| `₺342,50` · `342,50 ₺` · `342,50 TL` · `342,50TL` · `TL342,50` · `TRY 342` | tutar |
+| `1.250,75` · `1,250` · `125.50` · `1 250,75` (bölünmez boşluklu) | 1250.75 / 1250 / 125.50 / 1250.75 |
+| `Kazanacağınız tutar ₺275` — çekim ekli etiketler | tutar |
+| `Tahmini ücret: 342,50` — TL işaretini resim olarak çizen uygulamalar | tutar |
+
+Tek ayırıcı varsa kural şu: ardından **tam 3 hane** geliyorsa binlik ayırıcıdır,
+1-2 hane geliyorsa ondalık ayırıcıdır.
+
+Elenen sayılar: hemen ardından `km`, `dk`, `puan`, `%` gibi bir birim gelen
+sayılar. Bu eleme yalnızca para birimi **görünmeyen** adaylara uygulanır —
+`₺185 M. Kemal Mah.` adresteki `M.` yüzünden, `₺185 · %20 kampanya` da yüzde
+yüzünden elenmemeli.
 
 ---
 
@@ -215,7 +228,8 @@ her adım orada görünür:
 | `Ekranda: com.filan.app · bu uygulama izlenmiyor` | Çağrı sırasında ekranda olan uygulama seçtiğinizden farklı | Kayıttaki paket adını "Uygulama seç"ten işaretleyin |
 | `Pencere okunamadı` | Uygulama ekranını erişilebilirliğe kapatıyor (`FLAG_SECURE`) | Yapılabilecek bir şey yok |
 | `Çağrı kartı değil` + okunan metin | Ekran okundu ama çağrı sayılmadı | Metinde tutar `₺`/`TL` ile görünüyor mu, kabul düğmesinin yazısı ayarlardakiyle aynı mı bakın |
-| `Atlandı · Tutar okunamadı` | Kart tanındı, tutar bulunamadı | Okunan metni bana gönderin, ayrıştırıcıyı ona göre ayarlayayım |
+| `Atlandı · Tutar okunamadı` | Kart tanındı, tutar bulunamadı | Kayıt bu durumda ekrandan okunan metnin daha uzununu tutar; o satırı bana gönderin, ayrıştırıcıyı ona göre ayarlayayım |
+| `Atlandı · Tutar güvenilir değil` | Sayı bulundu ama para olduğuna güvenilmedi | Aynı şekilde kaydı gönderin; genelde TL işaretinin resim olarak çizilmesinden olur |
 | `Atlandı · Kabul düğmesi bulunamadı` | Karar verildi ama basılacak düğme yok | Düğmedeki yazıyı birebir ayarlara girin |
 
 Kayıt satırındaki ham metin, ekrandan gerçekten ne okunduğunu gösterir; sorunu

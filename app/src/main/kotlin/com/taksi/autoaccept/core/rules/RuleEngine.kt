@@ -109,12 +109,19 @@ class RuleEngine(private val settings: FilterSettings) {
     private fun looksLikeRideRequest(lower: String): Boolean {
         // Kabul dugmesi metni ya da bir para isareti gorunuyorsa cagri kartidir.
         val hasAcceptLabel = settings.acceptLabels.any { it.isNotBlank() && lower.contains(it.lowercase(TR)) }
-        val hasMoney = lower.contains("₺") || Regex("""\b(?:tl|try)\b""").containsMatchIn(lower)
+        val hasMoney = lower.contains("₺") || MONEY_WORD.containsMatchIn(lower)
         return hasAcceptLabel || hasMoney
     }
 
     companion object {
         private val TR: Locale = Locale.forLanguageTag("tr")
+
+        /**
+         * "240TL" de bir para isaretidir; sozcuk siniri yerine harf kontrolu
+         * kullaniyoruz ki rakama yapisik yazim da yakalansin, "atlı" gibi
+         * kelimelerin icindeki "tl" yakalanmasin.
+         */
+        private val MONEY_WORD = Regex("""(?<![a-zçğıöşü])(?:tl|try|lira)(?![a-zçğıöşü])""")
 
         fun hhmm(minuteOfDay: Int): String {
             val m = ((minuteOfDay % 1440) + 1440) % 1440

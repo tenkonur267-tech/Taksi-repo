@@ -87,6 +87,82 @@ class AmountParserTest {
         assertNull(AmountParser.normalize("abc"))
     }
 
+    // --- Gercek ekranlardan gelen zor durumlar -----------------------------
+
+    @Test
+    fun `tutarin yaninda adres kisaltmasi varsa tutar yine okunur`() {
+        // "m" birimi mesafe icin elenir ama "M. Kemal" bir adres; para isareti
+        // gorunuyorsa birim elemesi uygulanmamali.
+        assertEquals(185.0, amount("₺185 M. Kemal Mah. → Kadıköy")!!, 0.001)
+    }
+
+    @Test
+    fun `tutarin yaninda yuzde varsa tutar yine okunur`() {
+        assertEquals(185.0, amount("₺185 · %20 kampanya")!!, 0.001)
+    }
+
+    @Test
+    fun `para birimi rakama yapisik yazilabilir`() {
+        assertEquals(240.0, amount("240TL")!!, 0.001)
+        assertEquals(240.0, amount("TL240")!!, 0.001)
+        assertEquals(240.0, amount("240TRY")!!, 0.001)
+    }
+
+    @Test
+    fun `tl ile biten kelime para birimi sanilmaz`() {
+        assertNull(amount("atl 250"))
+    }
+
+    @Test
+    fun `bolunmez bosluklu binlik ayirici`() {
+        assertEquals(1250.75, amount("\u20BA1\u00A0250,75")!!, 0.001)
+        assertEquals(1250000.5, amount("1\u00A0250\u00A0000,50 TL")!!, 0.001)
+    }
+
+    @Test
+    fun `duz bosluklu binlik ayirici yalnizca kurus haneliyken birlesir`() {
+        assertEquals(1250.75, amount("Ücret 1 250,75 TL")!!, 0.001)
+        // Kurus hanesi yoksa iki ayri sayidir; birlestirilmemeli.
+        assertEquals(185.0, amount("₺185 250 puan")!!, 0.001)
+    }
+
+    @Test
+    fun `para birimi simge olarak ciziliyorsa kurus haneli yazim yeter`() {
+        // Bazi uygulamalar TL isaretini yazi degil resim olarak cizer; ekranda
+        // hic "₺" metni olmaz. Etiket hemen onunde ve kurus hanesi varsa tutardir.
+        val candidate = AmountParser.bestAmount("Tahmini ücret: 342,50")
+        assertEquals(342.50, candidate!!.value, 0.001)
+        assertEquals(2, candidate.confidence)
+    }
+
+    @Test
+    fun `kurus hanesi olmayan etiketli sayi dusuk guvende kalir`() {
+        assertEquals(1, AmountParser.bestAmount("Tahmini ücret 190")!!.confidence)
+    }
+
+    @Test
+    fun `etiketle sayi arasinda baska kelimeler varsa guven yukselmez`() {
+        // Etiket sayinin hemen onunde degil; kurus hanesi tek basina yetmez.
+        assertEquals(1, AmountParser.bestAmount("Ücret bilgisi aşağıda 342,50")!!.confidence)
+    }
+
+    @Test
+    fun `cekim ekli ucret etiketleri de taninir`() {
+        val candidate = AmountParser.bestAmount("Kazanacağınız tutar ₺275,00")
+        assertEquals(275.0, candidate!!.value, 0.001)
+        assertEquals(3, candidate.confidence)
+    }
+
+    @Test
+    fun `ucret kelimesi baska bir kelimenin icindeyse sayilmaz`() {
+        assertNull(amount("internet 250"))
+    }
+
+    @Test
+    fun `etiketli sayinin yanindaki birim yine eler`() {
+        assertNull(amount("Toplam 12,50 km"))
+    }
+
     @Test
     fun `adaylar guvene gore sirali gelir`() {
         val candidates = AmountParser.candidates("Ücret 100 · ₺250 · kazanç ₺400")
