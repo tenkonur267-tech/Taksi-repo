@@ -66,7 +66,9 @@ Tanınan yazımlar:
 | `Tahmini ücret: 342,50` — TL işaretini resim olarak çizen uygulamalar | tutar |
 
 Tutar aralık olarak yazılıyorsa (`Toplam kazanç ₺200 - 250`) **alt sınır**
-alınır: garanti edilen kazanç odur.
+alınır: garanti edilen kazanç odur. Uygulamanız tutarı hep aralık gösteriyorsa
+**En az (TL)** ayarını da alt sınıra göre verin; `₺345 - 435` yazan bir çağrı
+345 TL sayılır.
 
 Tek ayırıcı varsa kural şu: ardından **tam 3 hane** geliyorsa binlik ayırıcıdır,
 1-2 hane geliyorsa ondalık ayırıcıdır.
@@ -232,10 +234,16 @@ her adım orada görünür:
 | Hiç kayıt yok | Servis olay almıyor | Durum kartını kontrol edin; "açık görünüyor ama çalışmıyor" yazıyorsa servisi kapatıp açın |
 | `Ekranda: com.filan.app · bu uygulama izlenmiyor` | Çağrı sırasında ekranda olan uygulama seçtiğinizden farklı | Kayıttaki paket adını "Uygulama seç"ten işaretleyin |
 | `Pencere okunamadı` | Uygulama ekranını erişilebilirliğe kapatıyor (`FLAG_SECURE`) | Yapılabilecek bir şey yok |
-| `Çağrı kartı değil` + okunan metin | Ekran okundu ama çağrı sayılmadı | Metinde tutar `₺`/`TL` ile görünüyor mu, kabul düğmesinin yazısı ayarlardakiyle aynı mı bakın |
+| `Çağrı kartı değil` + okunan metin | Ekran okundu ama çağrı sayılmadı | Normal: ana sayfa, harita, ayar ekranları hep böyle geçer |
+| `Kabul düğmesinin yazısı bulunamadı` | Ekranda tutar var ama kabul düğmesinin yazısı ayarlardakilerden hiçbirine uymuyor | Kayıttaki `ekran:` bölümünde düğmenin yazısını bulun ve **Kabul düğmesinin yazısı** ayarına birebir girin |
 | `Atlandı · Tutar okunamadı` | Kart tanındı, tutar bulunamadı | Kayıt bu durumda ekrandan okunan metnin daha uzununu tutar; o satırı bana gönderin, ayrıştırıcıyı ona göre ayarlayayım |
 | `Atlandı · Tutar güvenilir değil` | Sayı bulundu ama para olduğuna güvenilmedi | Aynı şekilde kaydı gönderin; genelde TL işaretinin resim olarak çizilmesinden olur |
 | `Atlandı · Kabul düğmesi bulunamadı` | Karar verildi ama basılacak düğme yok | Düğmedeki yazıyı birebir ayarlara girin |
+| `Atlandı · Alt sınırın altında · 345 < 400 TL` | Tutar doğru okundu, sizin alt sınırınızın altında | Bu bir hata değil, ayarınız. Kabul etmek istiyorsanız **En az (TL)** değerini düşürün |
+| `Atlandı · Mesafe çok uzak · 2,81 km > 2 km` | Yolcu, azami mesafenizden uzakta | **Azami mesafe** ayarını büyütün veya boşaltın |
+
+Reddetme gerekçeleri sınırın kendisini de yazar (`345 < 400 TL`), böylece sorunun
+okumada mı yoksa ayarda mı olduğu tek bakışta görünür.
 
 Kayıt satırındaki ham metin, ekrandan gerçekten ne okunduğunu gösterir; sorunu
 çözmenin en hızlı yolu o satırı paylaşmaktır.

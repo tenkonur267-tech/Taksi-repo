@@ -51,6 +51,65 @@ class RuleEngineTest {
         acceptsToday: Int = 0
     ) = RuleEngine.Context(nowMs, minuteOfDay, lastAcceptMs, acceptsToday)
 
+    // --- Kullanicinin kayitlarindan gelen gercek ekranlar ------------------
+
+    @Test
+    fun `surucu uygulamasinin ana sayfasi cagri sanilmaz`() {
+        // Ana sayfada gunluk kazanc yaziyor; para isareti var ama kabul
+        // dugmesi yok. Eskiden cagri sanilip her yenilenmede kayda dusuyordu.
+        val decision = RuleEngine(settings()).decide(
+            request(
+                "POS", "Ana sayfa", "Kazanç", "Kampanya", "Menü",
+                "Konum MÜSAİT MEŞGUL", "Onur T. 4,98", "Çarşamba, 23 Eylül",
+                "Rezervasyonlarım", "Rezervasyon talepleri", "Toplam kazanç ₺400"
+            ),
+            ctx()
+        )
+        assertTrue(decision is Decision.Ignore)
+    }
+
+    @Test
+    fun `gercek cagri karti kabul edilir`() {
+        val decision = RuleEngine(settings(min = 300.0, max = 0.0)).decide(
+            request(
+                "Tümünü reddet (1)", "Beylikbağı Mah., Gebze", "3 dk · 1,11 km",
+                "11 dk · 5,64 km", "Mustafa Paşa, Gebze", "Kabul et",
+                "Toplam kazanç ₺345 - 435"
+            ),
+            ctx()
+        )
+        assertTrue(decision is Decision.Accept)
+        assertEquals(345.0, (decision as Decision.Accept).amount, 0.001)
+        // Yolcuya uzaklik ustte yazan deger.
+        assertEquals(1.11, decision.distanceKm!!, 0.001)
+    }
+
+    @Test
+    fun `alt sinir gerekcesi sinirin kendisini de yazar`() {
+        val decision = RuleEngine(settings(min = 400.0, max = 0.0)).decide(
+            request("Kabul et", "Toplam kazanç ₺345 - 435"), ctx()
+        )
+        assertTrue(decision is Decision.Reject)
+        val reject = decision as Decision.Reject
+        assertEquals(RejectReason.BELOW_MIN, reject.reason)
+        assertTrue(reject.detail.contains("345"))
+        assertTrue(reject.detail.contains("400"))
+    }
+
+    @Test
+    fun `bildirimde kabul yazisi gecmese de cagri islenir`() {
+        // Bildirimde kabul eylemi ayri bir dugmedir, metninde gecmez.
+        val decision = RuleEngine(settings()).decide(
+            RideRequest(
+                sourcePackage = pkg,
+                texts = listOf("Yeni çağrı", "Toplam kazanç ₺185"),
+                fromNotification = true
+            ),
+            ctx()
+        )
+        assertTrue(decision is Decision.Accept)
+    }
+
     @Test
     fun `para birimi rakama yapisik yazilsa da cagri karti taninir`() {
         // Kabul dugmesinin yazisi ayarlardakinden farkli olsa bile "240TL"

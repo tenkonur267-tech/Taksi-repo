@@ -312,7 +312,16 @@ class RideAcceptAccessibilityService : AccessibilityService() {
         if (decision is Decision.Ignore) {
             // Normalde sessiz gecilir; tanilama acikken ne okundugu gorunur olmali,
             // yoksa "hicbir sey olmuyor" sikayetini teshis etmenin yolu yok.
-            diagnostic("Çağrı kartı değil", request.flatText.take(200))
+            // Ekranda para var ama kabul dugmesinin yazisi yoksa, sorun buyuk
+            // ihtimalle o yazinin ayarlardakiyle uyusmamasi; bunu ayirt edelim.
+            if (RuleEngine.hasMoneyMarker(request.flatText)) {
+                diagnostic(
+                    "Kabul düğmesinin yazısı bulunamadı",
+                    "aranan: ${current.acceptLabels.joinToString("/")} · ekran: ${request.flatText.take(200)}"
+                )
+            } else {
+                diagnostic("Çağrı kartı değil", request.flatText.take(200))
+            }
             return false
         }
 

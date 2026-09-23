@@ -35,7 +35,7 @@ class RuleEngine(private val settings: FilterSettings) {
         val lower = request.flatText.lowercase(TR)
 
         // Yolcu cagrisina benzemiyorsa hic ugrasma; log gurultusu yapmayalim.
-        if (!looksLikeRideRequest(lower)) {
+        if (!looksLikeRideRequest(request, lower)) {
             return Decision.Ignore
         }
 
@@ -72,17 +72,28 @@ class RuleEngine(private val settings: FilterSettings) {
             return Decision.Reject(RejectReason.LOW_CONFIDENCE, candidate.raw)
         }
 
+        // Sinirlar kayda kendi degeriyle yazilir: "345 < 400" tek bakista
+        // ayarin mi yoksa okumanin mi sorun oldugunu soyler.
         val amount = candidate.value
         if (amount < settings.minAmount) {
-            return Decision.Reject(RejectReason.BELOW_MIN, format(amount))
+            return Decision.Reject(
+                RejectReason.BELOW_MIN,
+                "${format(amount)} < ${format(settings.minAmount)} TL"
+            )
         }
         if (settings.maxAmount > 0.0 && amount > settings.maxAmount) {
-            return Decision.Reject(RejectReason.ABOVE_MAX, format(amount))
+            return Decision.Reject(
+                RejectReason.ABOVE_MAX,
+                "${format(amount)} > ${format(settings.maxAmount)} TL"
+            )
         }
 
         val distanceKm = DistanceParser.pickupKm(request.flatText)
         if (settings.maxDistanceKm > 0.0 && distanceKm != null && distanceKm > settings.maxDistanceKm) {
-            return Decision.Reject(RejectReason.TOO_FAR, "${format(distanceKm)} km")
+            return Decision.Reject(
+                RejectReason.TOO_FAR,
+                "${format(distanceKm)} km > ${format(settings.maxDistanceKm)} km"
+            )
         }
 
         return if (settings.dryRun) {
@@ -106,11 +117,22 @@ class RuleEngine(private val settings: FilterSettings) {
     private fun formatWindow(): String =
         "${hhmm(settings.workStartMinute)}-${hhmm(settings.workEndMinute)}"
 
-    private fun looksLikeRideRequest(lower: String): Boolean {
-        // Kabul dugmesi metni ya da bir para isareti gorunuyorsa cagri kartidir.
+    /**
+     * Bu ekran bir yolcu cagrisi karti mi?
+     *
+     * Ekranda kabul dugmesinin yazisi gorunmeli. Yalnizca para isaretine
+     * bakmak yetmiyordu: surucu uygulamasinin ana sayfasinda da gunluk kazanc
+     * yazar ve o ekran cagri sanilip her yenilenmede "kabul dugmesi
+     * bulunamadi" diye kayda dusuyordu. Ustelik basilacak dugme zaten o
+     * yaziyla bulundugu icin, yazisi gorunmeyen bir kartta yapabilecegimiz
+     * bir sey yok.
+     *
+     * Bildirim ayri: kabul eylemi bildirimin dugmesidir, metninde gecmeyebilir.
+     */
+    private fun looksLikeRideRequest(request: RideRequest, lower: String): Boolean {
         val hasAcceptLabel = settings.acceptLabels.any { it.isNotBlank() && lower.contains(it.lowercase(TR)) }
-        val hasMoney = lower.contains("₺") || MONEY_WORD.containsMatchIn(lower)
-        return hasAcceptLabel || hasMoney
+        if (hasAcceptLabel) return true
+        return request.fromNotification && hasMoneyMarker(lower)
     }
 
     companion object {
@@ -122,6 +144,12 @@ class RuleEngine(private val settings: FilterSettings) {
          * kelimelerin icindeki "tl" yakalanmasin.
          */
         private val MONEY_WORD = Regex("""(?<![a-zçğıöşü])(?:tl|try|lira)(?![a-zçğıöşü])""")
+
+        /** Metinde para isareti var mi? Tanilama kaydi bunu ayirt etmek icin kullanir. */
+        fun hasMoneyMarker(text: String): Boolean {
+            val lower = text.lowercase(TR)
+            return lower.contains("₺") || MONEY_WORD.containsMatchIn(lower)
+        }
 
         fun hhmm(minuteOfDay: Int): String {
             val m = ((minuteOfDay % 1440) + 1440) % 1440
