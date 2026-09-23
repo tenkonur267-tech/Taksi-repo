@@ -119,6 +119,14 @@ class SettingsRepository(private val context: Context) {
         }
     }
 
+    /** Kayitli konumu siler; baloncuk varsayilan kosesine doner. */
+    suspend fun clearOverlayPosition() {
+        context.dataStore.edit { prefs ->
+            prefs.remove(Keys.overlayX)
+            prefs.remove(Keys.overlayY)
+        }
+    }
+
     /** Kabul sayaclari: bekleme suresi ve gunluk limit icin. */
     data class Counters(val lastAcceptMs: Long?, val acceptsToday: Int)
 

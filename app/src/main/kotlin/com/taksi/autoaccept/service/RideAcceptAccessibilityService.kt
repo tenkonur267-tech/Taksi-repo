@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService
 import android.app.Notification
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -129,6 +130,15 @@ class RideAcceptAccessibilityService : AccessibilityService() {
             )
             overlay = bubble
 
+            // Konum disaridan silinirse (Ayarlar'daki "sag kenara al")
+            // baloncuk varsayilan kosesine doner.
+            repository.overlayPosition
+                .onEach { saved ->
+                    overlayPosition = saved
+                    if (saved == null) bubble.moveToDefault()
+                }
+                .launchIn(scope)
+
             // show/hide kendi icinde tekrar cagrilmaya dayanikli; her ayar
             // degisiminde durumu yeniden uygulamak yeterli.
             repository.settings
@@ -170,6 +180,12 @@ class RideAcceptAccessibilityService : AccessibilityService() {
                 if (next && current.dryRun) "deneme modu açık: düğmeye basılmaz" else ""
             )
         )
+    }
+
+    /** Ekran dondu ya da pencere boyu degisti: butonu ekranin icinde tut. */
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        overlay?.ensureOnScreen()
     }
 
     /** Baloncuga uzun basildi: ayarlar ekranini one getir. */
@@ -262,11 +278,18 @@ class RideAcceptAccessibilityService : AccessibilityService() {
             byWindow.putIfAbsent(root.windowId, root)
         }
 
-        runCatching { event.source }.getOrNull()?.let { offer(NodeScanner.rootOf(it)) }
+        val source = runCatching { event.source }.getOrNull()
+        source?.let { offer(NodeScanner.rootOf(it)) }
         runCatching { rootInActiveWindow }.getOrNull()?.let { offer(it) }
         runCatching { windows }.getOrNull()?.forEach { window ->
             runCatching { window.root }.getOrNull()?.let { offer(it) }
         }
+
+        // Cagri bildirim golgesinde ya da baska bir surecin cizdigi bir
+        // pencerede duruyorsa o pencerenin koku sistem arayuzune ait olur ve
+        // paket suzgecine takilir. Olayin kaynagi yine de aradigimiz agactir;
+        // baska hicbir kok bulunamadiysa onu tariyoruz.
+        if (byWindow.isEmpty() && source != null) return listOf(source)
 
         return byWindow.values.toList()
     }

@@ -80,7 +80,7 @@ class RuleEngine(private val settings: FilterSettings) {
             return Decision.Reject(RejectReason.ABOVE_MAX, format(amount))
         }
 
-        val distanceKm = DistanceParser.nearestKm(request.flatText)
+        val distanceKm = DistanceParser.pickupKm(request.flatText)
         if (settings.maxDistanceKm > 0.0 && distanceKm != null && distanceKm > settings.maxDistanceKm) {
             return Decision.Reject(RejectReason.TOO_FAR, "${format(distanceKm)} km")
         }

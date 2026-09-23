@@ -55,6 +55,13 @@ class OverlayBubble(
     /** Pencere daireden biraz buyuk: golge kirpilmasin. */
     private val windowSize = (diameter + 2 * pad).toInt()
 
+    /**
+     * Ekran kenarinda birakilan pay. Pencerenin kendi saydam payiyla birlikte
+     * buton kenardan gorunur sekilde ici ceker; cihaz kenari yuvarlaksa ya da
+     * sistem pencereyi birkac piksel kaydirirsa yazi yine okunur kalir.
+     */
+    private val edgeMargin = pad.toInt()
+
     // --- Genel API --------------------------------------------------------
 
     /** @param saved kayitli konum; yoksa sag kenarda varsayilan yere kurulur. */
@@ -62,8 +69,8 @@ class OverlayBubble(
         if (root != null) return@post
         val (screenWidth, screenHeight) = screenSize()
         val start = saved?.let { (x, y) ->
-            OverlayPlacement.clamp(x, y, screenWidth, screenHeight, windowSize)
-        } ?: OverlayPlacement.default(screenWidth, screenHeight, windowSize, 0)
+            OverlayPlacement.clamp(x, y, screenWidth, screenHeight, windowSize, edgeMargin)
+        } ?: OverlayPlacement.default(screenWidth, screenHeight, windowSize, edgeMargin)
 
         val view = BubbleView(service, diameter, pad).apply {
             setOnTouchListener(DragTouchListener())
@@ -103,6 +110,32 @@ class OverlayBubble(
         this.running = running
         this.dryRun = dryRun
         root?.setState(running, dryRun)
+    }
+
+    /** Baloncugu varsayilan kosesine geri gonderir. */
+    fun moveToDefault() = main.post {
+        val lp = params ?: return@post
+        val (screenWidth, screenHeight) = screenSize()
+        val (x, y) = OverlayPlacement.default(screenWidth, screenHeight, windowSize, edgeMargin)
+        lp.x = x
+        lp.y = y
+        update()
+    }
+
+    /**
+     * Ekran donduyse ya da pencere boyu degistiyse butonu tekrar ekranin icine
+     * ceker; yoksa yatay moda gecince gorunmez bir kosede kalabilir.
+     */
+    fun ensureOnScreen() = main.post {
+        val lp = params ?: return@post
+        val (screenWidth, screenHeight) = screenSize()
+        val (x, y) = OverlayPlacement.clamp(
+            lp.x, lp.y, screenWidth, screenHeight, windowSize, edgeMargin
+        )
+        if (x == lp.x && y == lp.y) return@post
+        lp.x = x
+        lp.y = y
+        update()
     }
 
     /**
@@ -180,7 +213,8 @@ class OverlayBubble(
                             startY + dy.toInt(),
                             screenWidth,
                             screenHeight,
-                            windowSize
+                            windowSize,
+                            edgeMargin
                         )
                         lp.x = x
                         lp.y = y
@@ -194,7 +228,9 @@ class OverlayBubble(
                     press(v, down = false)
                     when {
                         dragging -> {
-                            lp.x = OverlayPlacement.snapToEdge(lp.x, screenSize().first, windowSize, 0)
+                            lp.x = OverlayPlacement.snapToEdge(
+                                lp.x, screenSize().first, windowSize, edgeMargin
+                            )
                             update()
                             onMoved(lp.x, lp.y)
                         }

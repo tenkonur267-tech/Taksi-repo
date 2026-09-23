@@ -30,7 +30,7 @@ NodeScanner ──► ekrandaki tüm metinleri toplar
         │
         ▼
 AmountParser ──► "₺342,50" gibi tutarları bulur, güven puanı verir
-DistanceParser ──► "1,2 km" mesafeyi bulur
+DistanceParser ──► kartta ilk yazan "2,81 km" — yolcuya uzaklık
         │
         ▼
 RuleEngine ──► tutar aralığı, mesafe, kelimeler, saat, bekleme, günlük limit
@@ -64,6 +64,9 @@ Tanınan yazımlar:
 | `1.250,75` · `1,250` · `125.50` · `1 250,75` (bölünmez boşluklu) | 1250.75 / 1250 / 125.50 / 1250.75 |
 | `Kazanacağınız tutar ₺275` — çekim ekli etiketler | tutar |
 | `Tahmini ücret: 342,50` — TL işaretini resim olarak çizen uygulamalar | tutar |
+
+Tutar aralık olarak yazılıyorsa (`Toplam kazanç ₺200 - 250`) **alt sınır**
+alınır: garanti edilen kazanç odur.
 
 Tek ayırıcı varsa kural şu: ardından **tam 3 hane** geliyorsa binlik ayırıcıdır,
 1-2 hane geliyorsa ondalık ayırıcıdır.
@@ -160,7 +163,7 @@ düğmesiyle uygulamayı açmadan durdurabilirsiniz.
 | **Ekran üstü buton** | Her uygulamanın üstünde duran yuvarlak başlat/durdur butonu. Açık gelir. |
 | **İzlenen uygulama** | Sadece işaretlediğiniz uygulamaların ekranı okunur. |
 | **En az / En çok (TL)** | Kabul aralığı. Sınır değerleri dahildir. Üst sınır boş = sınırsız. |
-| **Azami mesafe (km)** | Yolcu bundan uzaktaysa atlanır. Boş = sınırsız. |
+| **Azami mesafe (km)** | Yolcu bundan uzaktaysa atlanır. Kartta **ilk** yazan mesafe alınır; çağrı kartları önce yolcuya uzaklığı, sonra yolculuğun kendisini yazar. Boş = sınırsız. |
 | **Kabul düğmesinin yazısı** | Basılacak düğmenin metni. Yanlışsa hiçbir şey kabul edilmez. |
 | **Yasaklı kelimeler** | Biri geçerse çağrı atlanır (`havalimanı` gibi). |
 | **Zorunlu kelimeler** | Doluysa, en az biri geçmeyen çağrı atlanır (`nakit` gibi). |
@@ -189,7 +192,9 @@ Taksi uygulamasının, haritanın, ana ekranın üstünde kalır:
   yaslanır ve yeri kalıcı olarak hatırlanır.
 - **Uzun basın** — uygulamanın ayarlar ekranı açılır.
 
-Butonu **Ayarlar → Ekran üstü buton**'dan kapatabilirsiniz.
+Butonu **Ayarlar → Ekran üstü buton**'dan kapatabilirsiniz. Buton elverişsiz
+bir yerde kaldıysa aynı yerdeki **Butonu sağ kenara al** ile geri çağırın;
+ekran döndüğünde de kendiliğinden ekranın içine çekilir.
 
 Butonu erişilebilirlik servisi çizer. Bunun iki sonucu var: ayrıca "diğer
 uygulamaların üzerinde göster" izni istenmez (servis zaten açık olmak zorunda),

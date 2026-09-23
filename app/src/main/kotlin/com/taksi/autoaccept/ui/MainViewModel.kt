@@ -55,5 +55,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         current.copy(targetPackages = next)
     }
 
+    /** Baloncugun kayitli yerini siler; servis onu varsayilan koseye alir. */
+    fun resetOverlayPosition() {
+        viewModelScope.launch { repository.clearOverlayPosition() }
+    }
+
     fun clearLogs() = LogRepository.clear()
 }

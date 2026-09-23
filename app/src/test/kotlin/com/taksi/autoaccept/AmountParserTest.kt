@@ -164,6 +164,24 @@ class AmountParserTest {
     }
 
     @Test
+    fun `gercek cagri karti - aralikli tutar`() {
+        // Ekran goruntusundeki kart: tutar aralik olarak yazili.
+        // Alt sinir alinir; garanti edilen kazanc odur.
+        val text = "Tümünü reddet (1) 8 dk · 2,81 km Köşklü Çeşme Mah., Gebze " +
+            "4 dk · 1,45 km Mevlana Mah., Gebze Kabul et Toplam kazanç ₺200 - 250"
+        val candidate = AmountParser.bestAmount(text)
+        assertEquals(200.0, candidate!!.value, 0.001)
+        assertEquals(3, candidate.confidence)
+    }
+
+    @Test
+    fun `araligin ust ucu tutar sanilmaz`() {
+        // "250" para isareti tasimiyor; tek basina aday olmamali.
+        val values = AmountParser.candidates("Toplam kazanç ₺200 - 250").map { it.value }
+        assertEquals(listOf(200.0), values)
+    }
+
+    @Test
     fun `adaylar guvene gore sirali gelir`() {
         val candidates = AmountParser.candidates("Ücret 100 · ₺250 · kazanç ₺400")
         assertTrue(candidates.isNotEmpty())

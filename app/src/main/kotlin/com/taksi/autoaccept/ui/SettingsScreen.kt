@@ -125,6 +125,17 @@ fun SettingsScreen(viewModel: MainViewModel) {
                         color = MaterialTheme.colorScheme.error
                     )
                 }
+                if (settings.overlayEnabled) {
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(onClick = { viewModel.resetOverlayPosition() }) {
+                        Text("Butonu sağ kenara al")
+                    }
+                    Text(
+                        "Buton ekranın dışında ya da elverişsiz bir yerde kaldıysa.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
 

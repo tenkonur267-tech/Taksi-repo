@@ -13,11 +13,27 @@ object OverlayPlacement {
     fun default(screenWidth: Int, screenHeight: Int, size: Int, margin: Int): Pair<Int, Int> =
         (screenWidth - size - margin) to (screenHeight * 6 / 10)
 
-    /** Konumu ekranin icinde tutar; kayitli konum artik sigmiyorsa geri ceker. */
-    fun clamp(x: Int, y: Int, screenWidth: Int, screenHeight: Int, size: Int): Pair<Int, Int> {
-        val maxX = (screenWidth - size).coerceAtLeast(0)
-        val maxY = (screenHeight - size).coerceAtLeast(0)
-        return x.coerceIn(0, maxX) to y.coerceIn(0, maxY)
+    /**
+     * Konumu ekranin icinde tutar; kayitli konum artik sigmiyorsa geri ceker.
+     *
+     * [margin] kadar pay birakilir, ama ekran butondan darsa pay feda edilir:
+     * onemli olan butonun erisilebilir kalmasi.
+     */
+    fun clamp(
+        x: Int,
+        y: Int,
+        screenWidth: Int,
+        screenHeight: Int,
+        size: Int,
+        margin: Int = 0
+    ): Pair<Int, Int> {
+        return coerce(x, screenWidth, size, margin) to coerce(y, screenHeight, size, margin)
+    }
+
+    private fun coerce(value: Int, extent: Int, size: Int, margin: Int): Int {
+        val max = extent - size - margin
+        if (max <= margin) return (extent - size).coerceAtLeast(0) / 2
+        return value.coerceIn(margin, max)
     }
 
     /**

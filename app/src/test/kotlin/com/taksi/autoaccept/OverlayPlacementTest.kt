@@ -47,6 +47,21 @@ class OverlayPlacementTest {
     }
 
     @Test
+    fun `kenar boslugu birakilir`() {
+        val (x, y) = OverlayPlacement.clamp(-500, -500, screenWidth, screenHeight, size, margin)
+        assertEquals(margin, x)
+        assertEquals(margin, y)
+    }
+
+    @Test
+    fun `butondan dar ekranda pay feda edilir ama buton ekranda kalir`() {
+        // Pay sigmiyorsa ortalanir; her durumda ekranin icinde.
+        val (x, _) = OverlayPlacement.clamp(999, 0, 200, 2400, size, margin)
+        assertTrue(x >= 0)
+        assertTrue(x <= 200)
+    }
+
+    @Test
     fun `butondan dar ekranda yaslama negatif konum uretmez`() {
         val x = OverlayPlacement.snapToEdge(10, 100, size, margin)
         assertTrue(x >= 0)
