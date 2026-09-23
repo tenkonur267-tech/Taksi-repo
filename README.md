@@ -238,7 +238,7 @@ her adım orada görünür:
 | `Kabul düğmesinin yazısı bulunamadı` | Ekranda tutar var ama kabul düğmesinin yazısı ayarlardakilerden hiçbirine uymuyor | Kayıttaki `ekran:` bölümünde düğmenin yazısını bulun ve **Kabul düğmesinin yazısı** ayarına birebir girin |
 | `Atlandı · Tutar okunamadı` | Kart tanındı, tutar bulunamadı | Kayıt bu durumda ekrandan okunan metnin daha uzununu tutar; o satırı bana gönderin, ayrıştırıcıyı ona göre ayarlayayım |
 | `Atlandı · Tutar güvenilir değil` | Sayı bulundu ama para olduğuna güvenilmedi | Aynı şekilde kaydı gönderin; genelde TL işaretinin resim olarak çizilmesinden olur |
-| `Atlandı · Kabul düğmesi bulunamadı` | Karar verildi ama basılacak düğme yok | Düğmedeki yazıyı birebir ayarlara girin |
+| `Atlandı · Kabul düğmesi bulunamadı` | Karar verildi ama basılacak düğme bulunamadı | Kaydın sonundaki `[ekrandaki düğmeler: …]` listesi düğmelerin gerçek yazılarını gösterir; oradakini **Kabul düğmesinin yazısı** ayarına birebir girin |
 | `Atlandı · Alt sınırın altında · 345 < 400 TL` | Tutar doğru okundu, sizin alt sınırınızın altında | Bu bir hata değil, ayarınız. Kabul etmek istiyorsanız **En az (TL)** değerini düşürün |
 | `Atlandı · Mesafe çok uzak · 2,81 km > 2 km` | Yolcu, azami mesafenizden uzakta | **Azami mesafe** ayarını büyütün veya boşaltın |
 

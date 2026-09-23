@@ -11,8 +11,9 @@ import java.util.Locale
 object NodeScanner {
 
     private val TR: Locale = Locale.forLanguageTag("tr")
-    private const val MAX_NODES = 800
+    private const val MAX_NODES = 1500
     private const val MAX_DEPTH = 60
+    private const val DESCENDANT_LOOKUP = 24
 
     /** Agactaki gorunur metinleri, ekrandaki sirayla toplar. */
     fun collectTexts(root: AccessibilityNodeInfo?): List<String> {
@@ -30,10 +31,16 @@ object NodeScanner {
     /**
      * Verilen etiketlerden birine uyan kabul dugmesini bulur.
      *
-     * Once tam eslesmeyi dener ("Kabul Et"), sonra icerme eslesmesini
-     * ("Kabul Et · 145 TL"). Metin tasiyan dugum tiklanabilir degilse
-     * tiklanabilir bir ust dugum aranir; o da yoksa dokunma noktasi icin
-     * dugumun ekran koordinati dondurulur.
+     * Iki yoldan birden aranir:
+     *  1. Cercevenin kendi metin aramasi ([AccessibilityNodeInfo.findAccessibilityNodeInfosByText]).
+     *     Agac ne kadar buyuk olursa olsun dugumu bulur; bizim gezintimizin
+     *     dugum siniri kalabalik ekranlarda dugmeyi kacirabiliyordu.
+     *  2. Agaci kendimiz gezeriz: icerik aciklamasindan gelen ya da cerceve
+     *     aramasinin harf esitligi yuzunden atladigi dugumler icin.
+     *
+     * Adaylar arasindan once ekranda gorunen, sonra birebir eslesen secilir.
+     * Metin tasiyan dugum tiklanabilir degilse tiklanabilir bir ust dugum
+     * aranir; o da yoksa dokunma noktasi icin dugumun ekran koordinati kullanilir.
      */
     fun findAcceptTarget(
         root: AccessibilityNodeInfo?,
@@ -41,35 +48,104 @@ object NodeScanner {
     ): AcceptTarget? {
         if (root == null || labels.isEmpty()) return null
 
-        var exactMatch: AcceptTarget? = null
-        var partialMatch: AcceptTarget? = null
+        val candidates = ArrayList<Scored>()
 
-        forEachNode(root) { node ->
-            if (exactMatch != null) return@forEachNode
-            if (!node.isVisibleToUser) return@forEachNode
+        fun consider(node: AccessibilityNodeInfo) {
             val label = (node.text?.toString() ?: node.contentDescription?.toString())
                 ?.trim()?.lowercase(TR)
-                ?: return@forEachNode
-            if (label.isEmpty()) return@forEachNode
-
+                ?: return
+            if (label.isEmpty()) return
             val kind = AcceptLabelMatcher.match(label, labels)
-            if (kind == LabelMatch.NONE) return@forEachNode
-
-            val target = toTarget(node, label) ?: return@forEachNode
-            if (kind == LabelMatch.EXACT) {
-                exactMatch = target
-            } else if (partialMatch == null) {
-                partialMatch = target
-            }
+            if (kind == LabelMatch.NONE) return
+            val target = toTarget(node, label) ?: return
+            candidates.add(Scored(target, kind, node.isVisibleToUser))
         }
 
-        return exactMatch ?: partialMatch
+        for (label in labels) {
+            val text = label.trim()
+            if (text.isEmpty()) continue
+            runCatching { root.findAccessibilityNodeInfosByText(text) }
+                .getOrNull()
+                .orEmpty()
+                .forEach { node -> node?.let { consider(it) } }
+        }
+
+        forEachNode(root) { consider(it) }
+
+        return candidates.minWithOrNull(
+            compareBy<Scored>(
+                { if (it.visible) 0 else 1 },
+                { if (it.kind == LabelMatch.EXACT) 0 else 1 }
+            )
+        )?.target
     }
 
+    private data class Scored(
+        val target: AcceptTarget,
+        val kind: LabelMatch,
+        val visible: Boolean
+    )
+
+    /**
+     * Ekrandaki tiklanabilir ogelerin yazilari.
+     *
+     * "Kabul dugmesi bulunamadi" kaydinda ise yarayan tek bilgi budur:
+     * dugmede gercekte ne yazdigini gosterir, kullanici da ayara onu girer.
+     */
+    fun clickableLabels(root: AccessibilityNodeInfo?, limit: Int = 8): List<String> {
+        if (root == null) return emptyList()
+        val out = LinkedHashSet<String>()
+        forEachNode(root) { node ->
+            if (out.size >= limit) return@forEachNode
+            if (!node.isClickable || !node.isEnabled) return@forEachNode
+            val label = ownText(node) ?: firstDescendantText(node)
+            if (!label.isNullOrBlank()) out.add(label.trim().take(40))
+        }
+        return out.toList()
+    }
+
+    private fun ownText(node: AccessibilityNodeInfo): String? =
+        node.text?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+            ?: node.contentDescription?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+
+    /** Tiklanabilir dugumun yazisi cocuklarindaysa onu getirir. */
+    private fun firstDescendantText(node: AccessibilityNodeInfo): String? {
+        val queue = ArrayDeque<AccessibilityNodeInfo>()
+        queue.add(node)
+        var visited = 0
+        while (queue.isNotEmpty() && visited < DESCENDANT_LOOKUP) {
+            val current = queue.poll() ?: continue
+            visited++
+            if (current !== node) ownText(current)?.let { return it }
+            for (i in 0 until current.childCount) {
+                current.getChild(i)?.let { queue.add(it) }
+            }
+        }
+        return null
+    }
+
+    /**
+     * Dokunulacak hedefi hazirlar.
+     *
+     * Dokunma noktasi icin once yazinin kendi alani kullanilir: tiklanabilir
+     * ust dugum bazen kartin tamami oluyor ve onun ortasina dokunmak "Kabul
+     * et" yerine kartin bambaska bir yerine denk gelebilir. Yazinin uzeri her
+     * zaman dugmenin icindedir.
+     *
+     * Sinirlari bos olan bir dugum tiklanabilirse yine ise yarar: o zaman
+     * dokunma yerine dugum eyleminden basariz. Eskiden bos sinir hedefi
+     * tumden eliyordu.
+     */
     private fun toTarget(node: AccessibilityNodeInfo, label: String): AcceptTarget? {
         val clickable = clickableSelfOrAncestor(node)
-        val bounds = Rect().also { (clickable ?: node).getBoundsInScreen(it) }
-        if (bounds.width() <= 0 || bounds.height() <= 0) return null
+        val own = Rect().also { node.getBoundsInScreen(it) }
+        val bounds = if (own.width() > 0 && own.height() > 0) {
+            own
+        } else {
+            Rect().also { (clickable ?: node).getBoundsInScreen(it) }
+        }
+        val tappable = bounds.width() > 0 && bounds.height() > 0
+        if (clickable == null && !tappable) return null
         return AcceptTarget(node = clickable, bounds = bounds, label = label)
     }
 

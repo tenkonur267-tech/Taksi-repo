@@ -305,7 +305,11 @@ class RideAcceptAccessibilityService : AccessibilityService() {
         if (texts.isEmpty()) return false
 
         val request = RideRequest(sourcePackage = pkg, texts = texts)
-        if (isDuplicate(request.fingerprint, now)) return true
+        // Bu pencereyi az once isledik; ama cagri baska bir pencerede olabilir,
+        // o yuzden taramayi burada bitirmeyiz. Eskiden hic degismeyen ana sayfa
+        // penceresi her olayda taramayi kesiyor, asil cagri karti hic
+        // taranmiyordu.
+        if (isDuplicate(request.fingerprint, now)) return false
 
         val decision = evaluate(request, now)
 
@@ -328,8 +332,24 @@ class RideAcceptAccessibilityService : AccessibilityService() {
         if (decision is Decision.Accept) {
             val target = NodeScanner.findAcceptTarget(root, current.acceptLabels)
             if (target == null) {
-                log(Decision.Reject(RejectReason.NO_ACCEPT_BUTTON, current.acceptLabels.joinToString("/")), request)
-                return true
+                // Dugme bir an sonra ciziliyor olabilir: kartin parmak izini
+                // unutuyoruz ki bir sonraki olayda yeniden degerlendirilsin.
+                // Kayda ise kart basina bir kez dusuyoruz, yoksa kart ekranda
+                // durdugu surece kayitlar dolar.
+                forget(request.fingerprint)
+                if (!isDuplicate(NO_BUTTON_KEY + request.fingerprint, now)) {
+                    log(
+                        Decision.Reject(
+                            RejectReason.NO_ACCEPT_BUTTON,
+                            current.acceptLabels.joinToString("/")
+                        ),
+                        request,
+                        clickableNote(root)
+                    )
+                }
+                // Cagri baska bir pencerede olabilir; eskiden burada durulurdu
+                // ve asil kart hic taranmazdi.
+                return false
             }
             // Jestle basilirken baloncuk kabul dugmesinin uzerinde duruyorsa
             // dokunusu kendi yutar; kisa sureligine dokunulamaz yapiyoruz.
@@ -338,6 +358,9 @@ class RideAcceptAccessibilityService : AccessibilityService() {
             if (clicked) {
                 onAccepted(decision, request, current)
             } else {
+                // Basma denemesi baslatilamadi: kart hala ekrandaysa bir
+                // sonraki olayda yeniden denensin.
+                forget(request.fingerprint)
                 LogRepository.add(
                     DecisionLog.error(
                         "Basılamadı",
@@ -351,7 +374,7 @@ class RideAcceptAccessibilityService : AccessibilityService() {
 
         if (decision is Decision.WouldAccept) {
             val target = NodeScanner.findAcceptTarget(root, current.acceptLabels)
-            log(decision, request, buttonNote(target, current))
+            log(decision, request, buttonNote(target, current, root))
             return true
         }
 
@@ -433,14 +456,31 @@ class RideAcceptAccessibilityService : AccessibilityService() {
     }
 
     /** Deneme modunda kullaniciya kabul dugmesinin bulunup bulunmadigini bildirir. */
-    private fun buttonNote(target: NodeScanner.AcceptTarget?, current: FilterSettings): String =
+    private fun buttonNote(
+        target: NodeScanner.AcceptTarget?,
+        current: FilterSettings,
+        root: AccessibilityNodeInfo
+    ): String =
         if (target != null) "  [düğme: \"${target.label}\"]"
-        else "  [DİKKAT: kabul düğmesi bulunamadı, etiketler: ${current.acceptLabels.joinToString("/")}]"
+        else "  [DİKKAT: kabul düğmesi bulunamadı, etiketler: " +
+            "${current.acceptLabels.joinToString("/")}]${clickableNote(root)}"
+
+    /**
+     * Ekrandaki tiklanabilir ogelerin yazilari.
+     *
+     * Dugme bulunamadiginda kullaniciya gereken tek sey bu: ayardaki yaziyi
+     * neye gore duzeltecegini gosterir.
+     */
+    private fun clickableNote(root: AccessibilityNodeInfo): String {
+        val labels = runCatching { NodeScanner.clickableLabels(root) }.getOrNull().orEmpty()
+        if (labels.isEmpty()) return ""
+        return "  [ekrandaki düğmeler: ${labels.joinToString(" · ") { "\"$it\"" }}]"
+    }
 
     private fun log(decision: Decision, request: RideRequest, note: String = "") {
-        // Tutar okunamadiginda ekrandan ne geldigini gormek tek ipucu; o
-        // durumda metnin daha uzunu kaydedilir.
-        val limit = if (decision is Decision.Reject && decision.reason in AMOUNT_PROBLEMS) 400 else 180
+        // Tutar okunamadiginda ya da dugme bulunamadiginda ekrandan ne
+        // geldigini gormek tek ipucu; o durumda metnin daha uzunu kaydedilir.
+        val limit = if (decision is Decision.Reject && decision.reason in VERBOSE_REASONS) 400 else 180
         val raw = buildString {
             append(request.flatText.take(limit))
             val candidates = request.amountCandidates
@@ -458,6 +498,11 @@ class RideAcceptAccessibilityService : AccessibilityService() {
     private fun diagnostic(title: String, detail: String) {
         if (!settings.diagnosticMode) return
         LogRepository.add(DecisionLog.info(title, detail))
+    }
+
+    /** Karar verilemedi: ayni icerik bir sonraki olayda yeniden denensin. */
+    private fun forget(fingerprint: String) {
+        recentFingerprints.remove(fingerprint)
     }
 
     /** Ayni icerik kisa sure icinde tekrar gelirse atla. */
@@ -496,12 +541,18 @@ class RideAcceptAccessibilityService : AccessibilityService() {
         private const val SCAN_INTERVAL_MS = 250L
         private const val DUPLICATE_WINDOW_MS = 8_000L
         private const val FOREIGN_LOG_WINDOW_MS = 30_000L
-        private const val MAX_TRACKED_FINGERPRINTS = 12
+        private const val MAX_TRACKED_FINGERPRINTS = 16
+
+        /** Dugmesi bulunamayan kartlarin kayit tekrarini onlemek icin. */
+        private const val NO_BUTTON_KEY = "nobtn:" 
         private const val ACCEPT_VIBRATE_MS = 200L
         private const val TOGGLE_VIBRATE_MS = 40L
         private const val CLICK_TOUCH_PAUSE_MS = 500L
-        private val AMOUNT_PROBLEMS =
-            setOf(RejectReason.NO_AMOUNT, RejectReason.LOW_CONFIDENCE)
+        private val VERBOSE_REASONS = setOf(
+            RejectReason.NO_AMOUNT,
+            RejectReason.LOW_CONFIDENCE,
+            RejectReason.NO_ACCEPT_BUTTON
+        )
         private val TR = java.util.Locale.forLanguageTag("tr")
 
         /** Ayarlar ekraninin servisin gercekten calisip calismadigini gostermesi icin. */
